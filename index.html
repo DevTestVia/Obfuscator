@@ -1,0 +1,89 @@
+<html>
+<body>
+
+<textarea id="input" style="width:100%;height:200px"></textarea>
+<br>
+<button onclick="obf()">obfuscate</button>
+<button onclick="copy()">copy</button>
+<br>
+<textarea id="output" style="width:100%;height:200px"></textarea>
+
+<script>
+
+function r(l){
+let s="",c="Il"
+for(let i=0;i<l;i++) s+=c[Math.floor(Math.random()*c.length)]
+return s
+}
+
+function junk(){
+let n=Math.floor(Math.random()*900)+100
+return "(("+n+"+"+n+"-"+n+")/"+n+")"
+}
+
+function fakeTable(){
+let size=Math.floor(Math.random()*6)+4
+let arr=[]
+for(let i=0;i<size;i++){
+arr.push("{"+(Math.floor(Math.random()*300)+100)+","+(Math.floor(Math.random()*50)+1)+"}")
+}
+return arr.join(",")
+}
+
+function obf(){
+
+let code=document.getElementById("input").value
+let key=Math.floor(Math.random()*200)+50
+
+let real=[]
+
+for(let i=0;i<code.length;i++){
+let ch=code.charCodeAt(i)
+let noise=Math.floor(Math.random()*100)+1
+let enc=(ch^key)+noise
+real.push("{"+enc+","+noise+"}")
+}
+
+let realTable=r(16)
+let fake1=r(12)
+let fake2=r(12)
+
+let keyName=r(10)
+let str=r(12)
+let counter=r(8)
+let loader=r(8)
+
+let fakeFunc=r(20)
+let fakeArg=r(14)
+
+let lua=""
+
+lua+="function "+fakeFunc+"("+fakeArg+")if("+fakeArg+"=="+junk()+")then local "+r(6)+"="+fakeArg+"*2 end end;"
+lua+="local "+fake1+"={"+fakeTable()+"};"
+lua+="local "+fake2+"={"+fakeTable()+"};"
+lua+="if(false)then for i=1,#"+fake1+" do local a="+fake1+"[i][1];local b="+fake1+"[i][2];end end;"
+lua+="local "+realTable+"={"+real.join(",")+"};"
+lua+="local "+keyName+"="+key+";"
+lua+="local "+str+"='';"
+lua+="local "+counter+"=0;"
+lua+="for i=1,#"+realTable+" do "+counter+"="+counter+"+1;local a="+realTable+"[i][1];local b="+realTable+"[i][2];"+str+"="+str+"..string.char(((a-b)^"+keyName+"));if(1==2)then "+r(5)+"="+junk()+" end;end;"
+lua+="local "+loader+"=(loadstring or load);"
+lua+=fakeFunc+"(919);"
+lua+=loader+"("+str+")();"
+
+lua=lua.replace(/\n/g,"")
+
+document.getElementById("output").value=lua
+
+}
+
+function copy(){
+let out=document.getElementById("output")
+out.select()
+document.execCommand("copy")
+}
+
+</script>
+
+</body>
+</html>
