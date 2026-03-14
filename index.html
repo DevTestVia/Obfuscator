@@ -1,86 +1,124 @@
 <html>
-<body>
+<body style="margin:0;background:#0b0b0b;font-family:monospace;color:white;display:flex;justify-content:center;align-items:center;height:100vh;">
 
-<textarea id="input" style="width:100%;height:200px"></textarea>
+<div style="width:900px;background:#111;border:1px solid #333;border-radius:10px;padding:30px;box-shadow:0 0 25px #000;">
+
+<h1 style="text-align:center;color:#00ff9d;text-shadow:0 0 10px #00ff9d;">Lua Protector</h1>
+
+<p style="text-align:center;color:#888;">Paste Lua script and protect it</p>
+
+<textarea id="input" style="
+width:100%;
+height:180px;
+background:#000;
+border:1px solid #333;
+color:#00ff9d;
+padding:10px;
+border-radius:6px;
+resize:none;
+">
+print("hello world")
+</textarea>
+
+<br><br>
+
+<div style="text-align:center;">
+
+<button onclick="protect()" style="
+background:#00ff9d;
+border:none;
+padding:10px 30px;
+border-radius:6px;
+font-weight:bold;
+cursor:pointer;
+">
+Protect Script
+</button>
+
+<button onclick="copyOutput()" style="
+background:#222;
+border:none;
+padding:10px 30px;
+border-radius:6px;
+color:white;
+margin-left:10px;
+cursor:pointer;
+">
+Copy Output
+</button>
+
+</div>
+
 <br>
-<button onclick="obf()">obfuscate</button>
-<button onclick="copy()">copy</button>
-<br>
-<textarea id="output" style="width:100%;height:200px"></textarea>
+
+<textarea id="output" placeholder="Protected Lua will appear here..." style="
+width:100%;
+height:180px;
+background:#000;
+border:1px solid #333;
+color:#00ff9d;
+padding:10px;
+border-radius:6px;
+resize:none;
+"></textarea>
+
+</div>
+
+<script src="https://unpkg.com/fengari-web/dist/fengari-web.js"></script>
 
 <script>
 
-function r(l){
-let s="",c="Il"
-for(let i=0;i<l;i++) s+=c[Math.floor(Math.random()*c.length)]
-return s
-}
+function protect(){
 
-function junk(){
-let n=Math.floor(Math.random()*900)+100
-return "(("+n+"+"+n+"-"+n+")/"+n+")"
-}
+var userLua=document.getElementById("input").value
 
-function fakeTable(){
-let size=Math.floor(Math.random()*6)+4
-let arr=[]
-for(let i=0;i<size;i++){
-arr.push("{"+(Math.floor(Math.random()*300)+100)+","+(Math.floor(Math.random()*50)+1)+"}")
-}
-return arr.join(",")
-}
+var luaCode=`
+local a=[=[${userLua}]=]
 
-function obf(){
+local function enc(s)
 
-let code=document.getElementById("input").value
-let key=Math.floor(Math.random()*200)+50
+local words={"'return'","'elseif'","'then'"}
+local t={}
+local len=#s
 
-let real=[]
+for i=1,len do
+t[#t+1]="["..i.."]="..string.byte(s,i)
 
-for(let i=0;i<code.length;i++){
-let ch=code.charCodeAt(i)
-let noise=Math.floor(Math.random()*100)+1
-let enc=(ch^key)+noise
-real.push("{"+enc+","+noise+"}")
-}
+t[#t+1]="["..(len+i).."]="..words[math.random(#words)]
+t[#t+1]="["..(len+i+len).."]="..words[math.random(#words)]
+t[#t+1]="["..(len+i+len*2).."]="..words[math.random(#words)]
+t[#t+1]="["..(len+i+len*3).."]="..words[math.random(#words)]
+t[#t+1]="["..(len+i+len*4).."]="..words[math.random(#words)]
+end
 
-let realTable=r(16)
-let fake1=r(12)
-let fake2=r(12)
+local code=
+"local _E=_ENV or getfenv() "
+.."local d=_E.string "
+.."local f=_E.loadstring or _E.load "
+.."local b={"..table.concat(t,",").."} "
+.."local s='' "
+.."for i=1,"..len.." do s=s..d.char(b[i]) end "
+.."f(s)() "
 
-let keyName=r(10)
-let str=r(12)
-let counter=r(8)
-let loader=r(8)
+return code
+end
 
-let fakeFunc=r(20)
-let fakeArg=r(14)
+return enc(a)
+`
 
-let lua=""
+var result=fengari.load(luaCode)()
 
-lua+="function "+fakeFunc+"("+fakeArg+")if("+fakeArg+"=="+junk()+")then local "+r(6)+"="+fakeArg+"*2 end end;"
-lua+="local "+fake1+"={"+fakeTable()+"};"
-lua+="local "+fake2+"={"+fakeTable()+"};"
-lua+="if(false)then for i=1,#"+fake1+" do local a="+fake1+"[i][1];local b="+fake1+"[i][2];end end;"
-lua+="local "+realTable+"={"+real.join(",")+"};"
-lua+="local "+keyName+"="+key+";"
-lua+="local "+str+"='';"
-lua+="local "+counter+"=0;"
-lua+="for i=1,#"+realTable+" do "+counter+"="+counter+"+1;local a="+realTable+"[i][1];local b="+realTable+"[i][2];"+str+"="+str+"..string.char(((a-b)^"+keyName+"));if(1==2)then "+r(5)+"="+junk()+" end;end;"
-lua+="local "+loader+"=(loadstring or load);"
-lua+=fakeFunc+"(919);"
-lua+=loader+"("+str+")();"
-
-lua=lua.replace(/\n/g,"")
-
-document.getElementById("output").value=lua
+document.getElementById("output").value=result
 
 }
 
-function copy(){
-let out=document.getElementById("output")
-out.select()
+function copyOutput(){
+
+var text=document.getElementById("output")
+
+text.select()
 document.execCommand("copy")
+
 }
 
 </script>
