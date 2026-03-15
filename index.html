@@ -2,6 +2,7 @@
 <html>
 <head>
 <title>Viterveral Lua Obfuscator</title>
+
 <style>
 body{
 background:#0f0f0f;
@@ -10,6 +11,7 @@ font-family:monospace;
 text-align:center;
 padding:40px;
 }
+
 textarea{
 width:90%;
 height:220px;
@@ -19,14 +21,17 @@ border:none;
 padding:10px;
 margin:10px;
 }
+
 button{
 padding:10px 20px;
 background:#00ff9c;
 border:none;
 font-size:16px;
 cursor:pointer;
+margin:5px;
 }
 </style>
+
 </head>
 
 <body>
@@ -35,8 +40,12 @@ cursor:pointer;
 
 <textarea id="input" placeholder="Paste Lua script"></textarea>
 <br>
+
 <button onclick="obfuscate()">Obfuscate</button>
-<textarea id="output"></textarea>
+<button onclick="copyOutput()">Copy Output</button>
+<button onclick="downloadLua()">Download Lua</button>
+
+<textarea id="output" placeholder="Obfuscated code appears here"></textarea>
 
 <script>
 
@@ -150,6 +159,30 @@ result+=" end;"
 result+=v2+"("+v1+")();"
 
 document.getElementById("output").value=result
+
+}
+
+function copyOutput(){
+
+let out=document.getElementById("output")
+out.select()
+document.execCommand("copy")
+
+alert("Copied!")
+
+}
+
+function downloadLua(){
+
+let code=document.getElementById("output").value
+
+let blob=new Blob([code],{type:"text/plain"})
+let link=document.createElement("a")
+
+link.href=URL.createObjectURL(blob)
+link.download="Protected.txt"
+
+link.click()
 
 }
 
