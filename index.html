@@ -1,174 +1,225 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
 <title>Viterveral Lua Obfuscator</title>
 
 <style>
 body{
-background:#0f0f0f;
-color:#00ff9c;
+background:#111;
+color:#00ffa6;
 font-family:monospace;
 text-align:center;
-padding:40px;
+padding:40px
 }
 
 textarea{
 width:90%;
 height:220px;
-background:#1b1b1b;
-color:#00ff9c;
+background:#1a1a1a;
+color:#00ffa6;
 border:none;
 padding:10px;
-margin:10px;
+margin:10px
 }
 
 button{
 padding:10px 20px;
-background:#00ff9c;
+background:#00ffa6;
 border:none;
-font-size:16px;
-cursor:pointer;
 margin:5px;
+cursor:pointer
 }
 </style>
-
 </head>
 
 <body>
 
 <h2>Viterveral Lua Obfuscator</h2>
 
-<textarea id="input" placeholder="Paste Lua script"></textarea>
-<br>
+<textarea id="input" placeholder="Paste Lua script"></textarea><br>
 
 <button onclick="obfuscate()">Obfuscate</button>
-<button onclick="copyOutput()">Copy Output</button>
-<button onclick="downloadLua()">Download Lua</button>
+<button onclick="copyOut()">Copy</button>
+<button onclick="downloadLua()">Download</button>
 
-<textarea id="output" placeholder="Obfuscated code appears here"></textarea>
+<textarea id="output"></textarea>
 
 <script>
 
-function r(min,max){
-return Math.floor(Math.random()*(max-min+1))+min
+function lzwCompress(s){
+
+let dict={}
+let data=s.split("")
+let phrase=data[0]
+let code=256
+let out=[]
+
+for(let i=1;i<data.length;i++){
+
+let cur=data[i]
+
+if(dict[phrase+cur]!=null){
+phrase+=cur
+}else{
+out.push(phrase.length>1?dict[phrase]:phrase.charCodeAt(0))
+dict[phrase+cur]=code++
+phrase=cur
 }
 
-function randName(){
+}
+
+out.push(phrase.length>1?dict[phrase]:phrase.charCodeAt(0))
+return out
+
+}
+
+function randWord(){
+
 let chars="abcdefghijklmnopqrstuvwxyz"
-let name="_"
-for(let i=0;i<8;i++){
-name+=chars[r(0,chars.length-1)]
-}
-return name
+let s=""
+let len=2+Math.floor(Math.random()*2)
+
+for(let i=0;i<len;i++)
+s+=chars[Math.floor(Math.random()*chars.length)]
+
+return s
+
 }
 
-function fakeExpr(){
-let arr=[
-"t["+r(1,200)+"]",
-"t[t]",
-r(100000,999999999),
-r(10000,999999)
-]
-return arr[r(0,arr.length-1)]
+function mathExpr(n){
+
+let t=Math.floor(Math.random()*4)
+
+if(t==0){
+let a=Math.floor(Math.random()*n)+1
+let b=n-a
+return "("+a+"+"+b+")"
 }
 
-function junk(tbl){
-let j=[
-"if "+tbl+"["+r(1,200)+"] then elseif "+tbl+"["+r(1,200)+"] then end;",
-"if "+tbl+"["+r(1,200)+"] and not "+tbl+"["+r(1,200)+"] then local a="+r(1,9)+" end;",
-"while false do end;"
-]
-return j[r(0,j.length-1)]
+if(t==1){
+return "("+(n*2)+"/2)"
 }
 
-function randomTable(size){
-let arr=[]
-for(let i=0;i<size;i++){
-arr.push(r(10000,999999999))
+if(t==2){
+let a=n+Math.floor(Math.random()*5)
+let b=a-n
+return "("+a+"-"+b+")"
 }
-return "{"+arr.join(",")+"}"
+
+return "(1*"+n+")"
+
+}
+
+function stateExpr(n){
+
+let t=Math.floor(Math.random()*3)
+
+if(t==0) return "("+(n*2)+"/2)"
+if(t==1) return "("+(n+10)+"-10)"
+return "(1*"+n+")"
+
+}
+
+function randState(){
+return Math.floor(Math.random()*150)+50
 }
 
 function obfuscate(){
 
-let code=document.getElementById("input").value
+let src=document.getElementById("input").value
+if(!src.trim()) return
 
-let key1=r(20,120)
-let key2=r(5,60)
+let compressed=lzwCompress(src)
 
-let enc=[]
+let key=87
+let encrypted=compressed.map(v=>v^key)
+let base36=encrypted.map(v=>v.toString(36))
 
-for(let i=0;i<code.length;i++){
+let data=[]
+let idx=[]
 
-let byte=code.charCodeAt(i)
+for(let i=0;i<base36.length;i++){
 
-let dynamic=(key1+i*7)%255
+if(Math.random()>0.5)
+data.push(randWord())
 
-let encrypted=((byte ^ dynamic)+key2) ^ key1
+let pos=data.length+1
+idx.push(mathExpr(pos))
 
-enc.push(encrypted)
+data.push(base36[i])
 
-for(let j=0;j<r(1,3);j++){
-enc.push(fakeExpr())
-}
-
-}
-
-let fake1=randomTable(40)
-let fake2=randomTable(50)
-let fake3=randomTable(60)
-
-let v1=randName()
-let v2=randName()
-let v3=randName()
-
-let result="local a="+fake1+";"
-result+="local b="+fake2+";"
-result+="local c="+fake3+";"
-
-result+="local t={"+enc.join(",")+"};"
-
-result+="local "+v1+"='';"
-result+="local "+v2+"=load;"
-result+="local "+v3+"=string.char;"
-
-result+="local p=1;"
-
-result+="for i=1,#t do "
-
-for(let j=0;j<6;j++){
-result+=junk("t")
-}
-
-result+="local v=t[i];"
-result+="if type(v)=='number' then "
-
-result+="local dyn=(("+key1+")+p*7)%255;"
-result+="local d=((v ~ "+key1+")-"+key2+") ~ dyn;"
-result+=v1+"="+v1+".."+v3+"(d);"
-result+="p=p+1;"
-
-result+="end;"
-
-for(let j=0;j<6;j++){
-result+=junk("t")
-}
-
-result+=" end;"
-
-result+=v2+"("+v1+")();"
-
-document.getElementById("output").value=result
+if(Math.random()>0.5)
+data.push(randWord())
 
 }
 
-function copyOutput(){
+let s1=randState()
+let s2=randState()
+let s3=randState()
+let s4=randState()
+let s5=randState()
 
-let out=document.getElementById("output")
-out.select()
+let lua="--// Protected By Viterveral\n\n\n"
+
+lua+="local _s=string local _b=_s.byte local _c=_s.char local _n=tonumber "
+lua+="local base=36 local k=_b('X')-1 "
+lua+="local d={\""+data.join("\",\"")+"\"} "
+lua+="local idx={"+idx.join(",")+"} "
+
+lua+="local t={} local dict={} local r={} local vm={} "
+
+lua+="vm["+stateExpr(s1)+"]=function() "
+lua+="for i=1,#idx do "
+lua+="local v=d[idx[i]] "
+lua+="local n=_n(v,base) "
+lua+="if n then t[#t+1]=n~k end "
+lua+="end "
+lua+="return "+stateExpr(s2)+" end "
+
+lua+="vm["+stateExpr(s2)+"]=function() "
+lua+="for i=0,255 do dict[i]=_c(i) end "
+lua+="local p=_c(t[1]) r[1]=p local c=256 "
+lua+="for i=2,#t do "
+lua+="local n=t[i] local e "
+lua+="if dict[n] then e=dict[n] elseif n==c then e=p..p:sub(1,1) end "
+lua+="r[#r+1]=e "
+lua+="dict[c]=p..e:sub(1,1) "
+lua+="c=c+1 "
+lua+="p=e "
+lua+="end "
+lua+="return "+stateExpr(s3)+" end "
+
+lua+="vm["+stateExpr(s3)+"]=function() "
+lua+="local a={} "
+lua+="for i=1,#r do a[i]=r[i] end "
+lua+="local s=table.concat(a) "
+lua+="local f=(loadstring or load) "
+lua+="if f then local g=f(s) if g then g() end end "
+lua+="return "+stateExpr(s4)+" end "
+
+lua+="vm["+stateExpr(s4)+"]=function() return nil end "
+
+lua+="vm["+stateExpr(s5)+"]=function() "
+lua+="local v=0 "
+lua+="for i=1,5 do v=v+i end "
+lua+="return "+stateExpr(s3)+" end "
+
+lua+="local state="+stateExpr(s1)+" "
+
+lua+="while state do "
+lua+="state=vm[state]() "
+lua+="end "
+
+document.getElementById("output").value=lua
+
+}
+
+function copyOut(){
+
+let o=document.getElementById("output")
+o.select()
 document.execCommand("copy")
-
-alert("Copied!")
 
 }
 
@@ -177,12 +228,11 @@ function downloadLua(){
 let code=document.getElementById("output").value
 
 let blob=new Blob([code],{type:"text/plain"})
-let link=document.createElement("a")
+let a=document.createElement("a")
 
-link.href=URL.createObjectURL(blob)
-link.download="Protected.txt"
-
-link.click()
+a.href=URL.createObjectURL(blob)
+a.download="obfuscated.lua"
+a.click()
 
 }
 
