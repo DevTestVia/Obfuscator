@@ -1,123 +1,155 @@
+<!DOCTYPE html>
 <html>
-<body style="margin:0;background:#0b0b0b;font-family:monospace;color:white;display:flex;justify-content:center;align-items:center;height:100vh;">
-
-<div style="width:900px;background:#111;border:1px solid #333;border-radius:10px;padding:30px;box-shadow:0 0 25px #000;">
-
-<h1 style="text-align:center;color:#00ff9d;text-shadow:0 0 10px #00ff9d;">Lua Protector</h1>
-
-<p style="text-align:center;color:#888;">Paste Lua script and protect it</p>
-
-<textarea id="input" style="
-width:100%;
-height:180px;
-background:#000;
-border:1px solid #333;
-color:#00ff9d;
+<head>
+<title>Viterveral Lua Obfuscator</title>
+<style>
+body{
+background:#0f0f0f;
+color:#00ff9c;
+font-family:monospace;
+text-align:center;
+padding:40px;
+}
+textarea{
+width:90%;
+height:220px;
+background:#1b1b1b;
+color:#00ff9c;
+border:none;
 padding:10px;
-border-radius:6px;
-resize:none;
-">
-print("hello world")
-</textarea>
-
-<br><br>
-
-<div style="text-align:center;">
-
-<button onclick="protect()" style="
-background:#00ff9d;
+margin:10px;
+}
+button{
+padding:10px 20px;
+background:#00ff9c;
 border:none;
-padding:10px 30px;
-border-radius:6px;
-font-weight:bold;
+font-size:16px;
 cursor:pointer;
-">
-Protect Script
-</button>
+}
+</style>
+</head>
 
-<button onclick="copyOutput()" style="
-background:#222;
-border:none;
-padding:10px 30px;
-border-radius:6px;
-color:white;
-margin-left:10px;
-cursor:pointer;
-">
-Copy Output
-</button>
+<body>
 
-</div>
+<h2>Advanced Lua Obfuscator</h2>
 
+<textarea id="input" placeholder="Paste Lua script"></textarea>
 <br>
-
-<textarea id="output" placeholder="Protected Lua will appear here..." style="
-width:100%;
-height:180px;
-background:#000;
-border:1px solid #333;
-color:#00ff9d;
-padding:10px;
-border-radius:6px;
-resize:none;
-"></textarea>
-
-</div>
-
-<script src="https://unpkg.com/fengari-web/dist/fengari-web.js"></script>
+<button onclick="obfuscate()">Obfuscate</button>
+<textarea id="output"></textarea>
 
 <script>
 
-function protect(){
+function r(min,max){
+return Math.floor(Math.random()*(max-min+1))+min
+}
 
-var userLua=document.getElementById("input").value
+function randName(){
+let chars="abcdefghijklmnopqrstuvwxyz"
+let name="_"
+for(let i=0;i<8;i++){
+name+=chars[r(0,chars.length-1)]
+}
+return name
+}
 
-var luaCode=`
-local a=[=[${userLua}]=]
+function fakeExpr(){
+let arr=[
+"t["+r(1,200)+"]",
+"t[t]",
+r(100000,999999999),
+r(10000,999999)
+]
+return arr[r(0,arr.length-1)]
+}
 
-local function enc(s)
+function junk(tbl){
+let j=[
+"if "+tbl+"["+r(1,200)+"] then elseif "+tbl+"["+r(1,200)+"] then end;",
+"if "+tbl+"["+r(1,200)+"] and not "+tbl+"["+r(1,200)+"] then local a="+r(1,9)+" end;",
+"while false do end;"
+]
+return j[r(0,j.length-1)]
+}
 
-local words={"'return'","'elseif'","'then'"}
-local t={}
-local len=#s
+function randomTable(size){
+let arr=[]
+for(let i=0;i<size;i++){
+arr.push(r(10000,999999999))
+}
+return "{"+arr.join(",")+"}"
+}
 
-for i=1,len do
-t[#t+1]="["..i.."]="..string.byte(s,i)
+function obfuscate(){
 
-t[#t+1]="["..(len+i).."]="..words[math.random(#words)]
-t[#t+1]="["..(len+i+len).."]="..words[math.random(#words)]
-t[#t+1]="["..(len+i+len*2).."]="..words[math.random(#words)]
-t[#t+1]="["..(len+i+len*3).."]="..words[math.random(#words)]
-t[#t+1]="["..(len+i+len*4).."]="..words[math.random(#words)]
-end
+let code=document.getElementById("input").value
 
-local code=
-"local _E=_ENV or getfenv() "
-.."local d=_E.string "
-.."local f=_E.loadstring or _E.load "
-.."local b={"..table.concat(t,",").."} "
-.."local s='' "
-.."for i=1,"..len.." do s=s..d.char(b[i]) end "
-.."f(s)() "
+let key1=r(20,120)
+let key2=r(5,60)
 
-return code
-end
+let enc=[]
 
-return enc(a)
-`
+for(let i=0;i<code.length;i++){
 
-var result=fengari.load(luaCode)()
+let byte=code.charCodeAt(i)
 
-document.getElementById("output").value=result
+let dynamic=(key1+i*7)%255
+
+let encrypted=((byte ^ dynamic)+key2) ^ key1
+
+enc.push(encrypted)
+
+for(let j=0;j<r(1,3);j++){
+enc.push(fakeExpr())
+}
 
 }
 
-function copyOutput(){
+let fake1=randomTable(40)
+let fake2=randomTable(50)
+let fake3=randomTable(60)
 
-var text=document.getElementById("output")
+let v1=randName()
+let v2=randName()
+let v3=randName()
 
-text.select()
-document.execCommand("copy")
+let result="local a="+fake1+";"
+result+="local b="+fake2+";"
+result+="local c="+fake3+";"
+
+result+="local t={"+enc.join(",")+"};"
+
+result+="local "+v1+"='';"
+result+="local "+v2+"=load;"
+result+="local "+v3+"=string.char;"
+
+result+="local p=1;"
+
+result+="for i=1,#t do "
+
+for(let j=0;j<6;j++){
+result+=junk("t")
+}
+
+result+="local v=t[i];"
+result+="if type(v)=='number' then "
+
+result+="local dyn=(("+key1+")+p*7)%255;"
+result+="local d=((v ~ "+key1+")-"+key2+") ~ dyn;"
+result+=v1+"="+v1+".."+v3+"(d);"
+result+="p=p+1;"
+
+result+="end;"
+
+for(let j=0;j<6;j++){
+result+=junk("t")
+}
+
+result+=" end;"
+
+result+=v2+"("+v1+")();"
+
+document.getElementById("output").value=result
 
 }
 
